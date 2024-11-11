@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "RemoteDisk",
+  "name": "A web app to access your files over the local network from any device.",
   "icons": [
     {
       "src": "favicon.ico",
