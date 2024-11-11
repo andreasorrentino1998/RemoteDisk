@@ -1,10 +1,7 @@
 # RemoteDisk
 
 A web server to access your files over the local network from any device.
-The server is powered by NodeJS.
-
-**Note:** The project it's still work in progress and need a refactoring.
-Actually, it's just a a quick backbone implementation in order to get a working software soon :)
+It is powered by React & NodeJS.
 
 ## Installation
 
@@ -34,7 +31,7 @@ npm run build
 ```
 
 ## Configuration
-Inside the `main.js`, change the parameters in the section marked as `CONFIG`. For example:
+Inside the `server.js`, change the parameters in the section marked as `CONFIG`. For example:
 
 ```
 const host = "192.168.0.1";     // Server IP
@@ -69,12 +66,12 @@ It will generate a certificate `cert.pem` and a private key `key.pem`. The certi
 Start the server on your computer:
 
 ```
-node main.js
+node server.js
 ```
 
 Once the server is running, you can connect to it from any device on the same local network. Open a web browser and enter the server IP address followed by its port in the address bar. For example, if the server IP is `192.168.0.1` and its port is `8080`, you should type the address:
 
 
 ```
-https://192.168.0.1:8080/app/index.html
+https://192.168.0.1:8080/
 ```

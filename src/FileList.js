@@ -3,10 +3,10 @@ import './FileList.css';
 
 function FileList() {
   const [data, setData] = useState(null);
-  const [currentPath, setCurrentPath] = useState("/");
+  const [currentPath, setCurrentPath] = useState("/Volumes/");
 
   useEffect(() => {
-    fetch('/')
+    fetch('/Volumes/')
       .then(response => { return response.json()})
       .then(data => {
         console.log('Dati ricevuti dal server:', data); // Stampa i dati nel log
@@ -16,7 +16,7 @@ function FileList() {
   }, []);
 
   function navigateBack(){
-    if(currentPath != "/"){
+    if(currentPath != "/Volumes/"){
         console.log(currentPath);
         const parts = currentPath.split('/');
         parts.pop();    // Remove the slash
@@ -27,6 +27,13 @@ function FileList() {
   }
 
   function openFile(path){
+    const exts = ["mkv", "ts", "flv", "avi"];
+    const fileExt = path.split('.').pop().toLowerCase();
+    if(exts.includes(fileExt)){
+        const baseURL = `${window.location.protocol}//${window.location.host}`;
+        navigator.clipboard.writeText(baseURL + path);
+        return;
+    }
     window.location.href = path;
   }
 
