@@ -5,13 +5,13 @@ const sharp = require('sharp');
 const mime = require('mime-types'); // Per determinare il tipo MIME del file
 
 // ====  CONFIG ==============
-const host = "";        // Server IP
-const port = 8080;      // Server Port
+const host = "192.168.1.23";        // Server IP
+const port = 8080;                  // Server Port
 
 const allowedClientsIP = [
-    "",
-    "",
-    ""
+    "192.168.1.5",
+    "192.168.1.177",
+    "192.168.1.23"
 ]
 
 const baseDirectory = '/Volumes/';
@@ -20,7 +20,6 @@ const baseDirectory = '/Volumes/';
 const IMAGES_PER_PAGE = 30;
 
 var imageDir = "";
-
 
 const CYAN = '\x1b[36m';
 const RESET = '\x1b[0m';
@@ -60,7 +59,7 @@ const requestListener = async (req, res) => {
         <html>
         <body>
             <h1>Galleria Thumbnail</h1>
-            <a href='https://${host}:${port}/${imageDir}'>File Manager Mode</a>
+            <a onclick='window.history.back()'>File Manager Mode</a>
             <div id="gallery" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;"></div>
             <script>
                 let start = 0;
@@ -154,7 +153,7 @@ const requestListener = async (req, res) => {
     }
     
     const requestedPath = decodeURIComponent(req.url);
-    const targetPath = path.join(baseDirectory, requestedPath);
+    var targetPath = path.join(baseDirectory, requestedPath);
     const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
 
     console.log("\n" + BOLD + CYAN + "◼️ Client " + clientIp + RESET + " [" + getCurrentTime() + "]" + RESET);
@@ -169,10 +168,34 @@ const requestListener = async (req, res) => {
         const end = parts[1] ? parseInt(parts[1], 10): "";
         console.log(CYAN + "Bytes" + RESET, "[" + start + ", " + end + "]");
     }
-    
+    console.log("File richiesto: ", targetPath);
+
+    if(targetPath.includes("/app/") || targetPath.includes("/static/")
+    ||  targetPath.includes("manifest.json")
+    ||  targetPath.includes("favicon.ico")
+    ||  targetPath.includes("logo192.png")
+    ||  targetPath.includes("logo512.png")
+    ){
+        targetPath = targetPath.replace("/Volumes/", "");
+        if(targetPath.includes("app/")) targetPath = targetPath.replace("app/", "");
+        targetPath = "build/" + targetPath;
+        const fileStream = fs.createReadStream(targetPath);
+
+        if(targetPath.includes(".html")) res.writeHead(200, { 'Content-Type': 'text/html' });
+        else if(targetPath.includes(".css")) res.writeHead(200, { 'Content-Type': 'text/css' });
+        else if(targetPath.includes(".js")) res.writeHead(200, { 'Content-Type': 'text/js' });
+        else if(targetPath.includes(".json")) res.writeHead(200, { 'Content-Type': 'text/json' });
+        else if(targetPath.includes(".svg")) res.writeHead(200, { 'Content-Type': 'image/svg+xml' });
+        else if(targetPath.includes(".ico")) res.writeHead(200, { 'Content-Type': 'image/x-icon' });
+        else if(targetPath.includes(".png")) res.writeHead(200, { 'Content-Type': 'image/png' });
+
+        fileStream.pipe(res);
+        return;
+    }
 
     fs.stat(targetPath, (err, stats) => {
         if (err) {
+            console.log("File di testo richiesto.");
             res.writeHead(404, { 'Content-Type': 'text/html' });
             res.end(`<h1>404 Not Found</h1><p>${err.message}</p>`);
             return;
@@ -205,91 +228,18 @@ const requestListener = async (req, res) => {
                     return a.localeCompare(b);
                 });
 
-                // Inizia la pagina HTML
-                res.writeHead(200, { 'Content-Type': 'text/html' });
-                res.write(`
-                    <html>
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <style>
-                            body {
-                                font-family: Arial, sans-serif;
-                                background-color: #f4f4f9;
-                                color: #333;
-                                padding: 20px;
-                            }
-                            h1 {
-                                color: #555;
-                            }
-                            ul {
-                                list-style-type: none;
-                                padding: 0;
-                            }
-                            li {
-                                margin: 5px 0;
-                                display: flex;
-                                align-items: center;
-                            }
-                            a {
-                                text-decoration: none;
-                                color: #0073e6;
-                                font-weight: bold;
-                                margin-left: 8px;
-                            }
-                            a:hover {
-                                text-decoration: underline;
-                            }
-                            .icon {
-                                width: 20px;
-                                height: 20px;
-                            }
-                            .folder-icon {
-                                content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>');
-                            }
-                            .file-icon {
-                                content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="black"><path d="M6 2C4.89 2 4 2.9 4 4v16c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm7 1.5L18.5 9H13V3.5zm-7 15V4h5v5h5v9H6z"/></svg>');
-                                color: #0073e6;
-                            }
-                            .ellipsis {
-                                display: inline-block;
-                                max-width: 100%; /* Imposta la larghezza massima */
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                vertical-align: middle;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>Directory: ${requestedPath}</h1>
-                        <a href='https://${host}:${port}/gallery${requestedPath}'>Gallery Mode</a>
-                        <ul>
-                `);
-
-                // Aggiunge un link per tornare alla directory precedente
-                if (requestedPath !== '/') {
-                    const parentPath = path.dirname(requestedPath);
-                    res.write(`<li><a href="${parentPath}/">../</a></li>`);
-                }
-
-                // Crea un link per ogni file o directory
-                files.forEach(file => {
-                    const filePath = path.join(requestedPath, file);
+                const fileList = files.map(file => {
                     const displayPath = path.join(targetPath, file);
                     const isDirectory = fs.statSync(displayPath).isDirectory();
-                    const iconClass = isDirectory ? 'folder-icon' : 'file-icon';
-
-                    res.write(`
-                        <li>
-                            <span class="icon ${iconClass}"></span>
-                            <a href="${filePath}${isDirectory ? '/' : ''}" class='ellipsis'>${file}</a>
-                        </li>
-                    `);
+                    return {
+                        filepath: path.join(req.url, file) + (isDirectory ? '/' : ''),
+                        filename: file,
+                        isDirectory: isDirectory
+                    };
                 });
 
-                // Chiude la pagina HTML
-                res.end('</ul>');
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(fileList));
             });
         } else {
             const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']; // Estensioni immagine supportate
@@ -355,6 +305,7 @@ const requestListener = async (req, res) => {
                 res.writeHead(200, { 'Content-Type': 'text/plain' });
                 const fileStream = fs.createReadStream(targetPath, 'utf-8');
                 fileStream.pipe(res);
+                
             }
             // Verifica se è un file PDF
             else if (pdfExtensions.includes(extname)) {

@@ -1,2 +1,4 @@
-/certificate/*
 /node_modules/*
+/certificate/*
+/build/*
+.DS_Store

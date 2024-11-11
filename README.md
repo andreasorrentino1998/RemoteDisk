@@ -27,6 +27,12 @@ Install the dependecies:
 npm install
 ```
 
+Build the client-side app the server should serve:
+
+```
+npm run build
+```
+
 ## Configuration
 Inside the `main.js`, change the parameters in the section marked as `CONFIG`. For example:
 
@@ -70,5 +76,5 @@ Once the server is running, you can connect to it from any device on the same lo
 
 
 ```
-https://192.168.0.1:8080
+https://192.168.0.1:8080/app/index.html
 ```
