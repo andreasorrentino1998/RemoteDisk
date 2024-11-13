@@ -1,7 +1,6 @@
 # RemoteDisk
 
 A web server to access your files over the local network from any device.
-It is powered by React & NodeJS.
 
 ## Installation
 
@@ -24,7 +23,7 @@ Install the dependecies:
 npm install
 ```
 
-Build the client-side app the server should serve:
+Build the client-side app:
 
 ```
 npm run build

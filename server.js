@@ -8,13 +8,13 @@ const sharp = require('sharp');
 const app = express();
 
 // ====  CONFIG ==============
-const host = "192.168.1.23";        // Server IP
-const port = 8080;                  // Server Port
+const host = "";        // Server IP
+const port = 8080;      // Server Port
 
 const allowedClientsIP = [
-    "192.168.1.5",
-    "192.168.1.177",
-    "192.168.1.23"
+    "",
+    "",
+    ""
 ]
 
 const baseDirectory = '/Volumes/';
@@ -42,6 +42,13 @@ function getCurrentTime() {
 
 // Serve i file statici dalla cartella 'build'
 app.use(express.static(path.join(__dirname, 'build')));
+
+// Cross-Origin Resource Sharing for localhost:3000
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+  });
 
 // In caso di altre richieste, restituisci sempre index.html
 app.get('/', (req, res) => {
@@ -82,64 +89,11 @@ async function scanDirectory(targetPath) {
     return fileList;
 }
 
-app.get('/gallery/*', (req, res) => {
-    const baseURL = req.url.replace("/gallery/", "");
-    const IMAGES_PER_PAGE = 30;
-    // Invia la pagina HTML iniziale con il JavaScript per il caricamento progressivo
-    let html = `
-    <html>
-    <body>
-        <h1>Galleria Thumbnail</h1>
-        <a onclick='window.history.back()'>File Manager Mode</a>
-        <div id="gallery" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;"></div>
-        <script>
-            let start = 0;
-            const IMAGES_PER_PAGE = ${IMAGES_PER_PAGE};
-            const gallery = document.getElementById('gallery');
-
-            // Funzione per caricare le immagini
-            async function loadImages() {
-                const response = await fetch('/${baseURL}load-images?start=' + start + '&thumbnail=true');
-                const images = await response.json();
-                if (images.length > 0) {
-                    images.forEach(src => {
-                        const a = document.createElement('a');
-                        a.href = 'https://${host}:${port}/' + src.replace('?thumbnail=true', '');
-                        const img = document.createElement('img');
-                        img.src = 'https://${host}:${port}/' + src;
-                        console.log(src);
-                        img.style.width = '100%';
-                        img.style.height = 'auto';
-                        a.appendChild(img);
-                        gallery.appendChild(a);
-                    });
-                    start += IMAGES_PER_PAGE;
-                }
-            }
-
-            // Carica le prime immagini
-            loadImages();
-
-            // Rileva lo scroll per il caricamento progressivo
-            window.addEventListener('scroll', () => {
-                if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-                    loadImages();
-                }
-            });
-        </script>
-    </body>
-    </html>`;
-    
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(html);
-    return;
-});
-
 app.get("*/load-images?", async (req, res) => {
-    const IMAGES_PER_PAGE = 30;
     console.log(req.url);
     const url = new URL(req.url, `https://${host}:${port}`);
     const start = parseInt(url.searchParams.get('start')) || 0;
+    const end = parseInt(url.searchParams.get('end')) || -1;
     const thumbnail = url.searchParams.has('thumbnail');
         //console.log(thumbnail);
 
@@ -148,14 +102,29 @@ app.get("*/load-images?", async (req, res) => {
             const baseURL = decodeURIComponent(req.url.split('load-images?')[0]);
             console.log(baseURL);
 
+            var limitedFiles;
+
+            console.log("Start=", start, "end=", end);
+
             const files = await fs.promises.readdir(baseURL);
             const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
-            const limitedFiles = imageFiles.slice(start, start + IMAGES_PER_PAGE);
+            if(end > start) limitedFiles = imageFiles.slice(start, end);
+            else limitedFiles = imageFiles;
 
             // Invia le thumbnail come array JSON con i percorsi relativi
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(limitedFiles.map(file => thumbnail ? `${baseURL}${file}?thumbnail=true` : `/${file}`)));
-            
+
+            // JSON
+            filesInfo = await Promise.all(limitedFiles.map(async (file) => {
+                const metadata = await sharp(baseURL + file).metadata();
+                return {
+                    src: thumbnail ? `https://${host}:${port}${baseURL}${file}?thumbnail=true` : `https://${host}:${port}${baseURL}${file}`,
+                    width: metadata.width,
+                    height: metadata.height
+                };
+            }));
+
+            res.end(JSON.stringify(filesInfo));
         } catch (err) {
             console.error('Errore nel caricamento delle immagini:', err);
             res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -182,7 +151,7 @@ app.get('*', async (req, res) => {
     
         try {
             const thumbnail = await sharp(decodeURIComponent(imageURL))
-                .resize(150, 150, /*{ fit: 'inside' }*/) // Dimensioni thumbnail
+                .resize(150) // Dimensioni thumbnail
                 .toBuffer();
             
             res.writeHead(200, { 'Content-Type': 'image/jpeg' });
@@ -215,5 +184,5 @@ app.get('*', async (req, res) => {
 
 // Avvia il server HTTPS
 https.createServer(SSLOptions, app).listen(port, host, () => {
-  console.log(`Server running at http://${host}:${port}/`);
+  console.log(`Server running at https://${host}:${port}/`);
 });
