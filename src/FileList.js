@@ -25,7 +25,7 @@ function FileList() {
   const [currentPath, setCurrentPath] = useState("/Volumes/");
   const [isScrolling, setIsScrolling] = useState(false);
   var [loadedImages, setLoadedImages] = useState(0);
-  const imagesToLoad = 30;
+  const [imagesToLoad, setImagesToLoad] = useState(30);
 
   const [galleryMode, setGalleryMode] = useState(false);
 
@@ -47,18 +47,19 @@ function FileList() {
     };
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
-  }, [isScrolling]);
+  }, [isScrolling, loadedImages]);
 
   function changeViewMode(){
     setGalleryMode(!galleryMode);
   }
 
   function loadImages(){//
-    fetch(currentPath+'load-images?start='+loadedImages+'&end='+(loadedImages+imagesToLoad)+'&thumbnail=true')
+    var loaded = loadedImages;  // to avoid it changes when reading two times when building the URL to fetch.
+    fetch(currentPath+'load-images?start='+loaded+'&end='+(loaded+imagesToLoad)+'&thumbnail=true')
       .then(response => { return response.json()})
       .then(data => {
         console.log('Dati ricevuti dal server:', data); // Stampa i dati nel log
-        setLoadedImages(loadedImages + imagesToLoad);
+        setLoadedImages(loaded + imagesToLoad);
         if(loadedImages != 0) setPhotos(photos => [...photos, ...data]);
         else setPhotos(data);
         console.log(loadedImages);
@@ -76,7 +77,8 @@ function FileList() {
         setData(data);
       })
       .catch(error => console.error('Error fetching data:', error));
-
+    
+    setImagesToLoad(10);
     loadImages();
   }, [currentPath]);
 
@@ -105,13 +107,15 @@ function FileList() {
   useEffect(() => {
     if(loadedImages == 0){
       console.log('Current Path updated:', currentPath);
-      loadImages();
+      
     }
   }, [currentPath, loadedImages]); // Si attiva ogni volta che currentPath cambia
 
   function navigateToDirectory(path){    
     setCurrentPath(decodeURIComponent(path));
     setLoadedImages(0);
+    setImagesToLoad(30);
+    setPhotos([]);
     console.log('Navigate to ' + currentPath);
     fetch(decodeURIComponent(path))
       .then(response => {console.log('Dati ricevuti dal server:', response); return response.json()})

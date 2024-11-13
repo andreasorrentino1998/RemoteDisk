@@ -107,7 +107,7 @@ app.get("*/load-images?", async (req, res) => {
             console.log("Start=", start, "end=", end);
 
             const files = await fs.promises.readdir(baseURL);
-            const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
+            const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif|webp|hvec)$/i.test(file));
             if(end > start) limitedFiles = imageFiles.slice(start, end);
             else limitedFiles = imageFiles;
 
