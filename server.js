@@ -106,8 +106,9 @@ app.get("*/load-images?", async (req, res) => {
 
             console.log("Start=", start, "end=", end);
 
+            // Note: HEIC format seems to be supported only on Safari.
             const files = await fs.promises.readdir(baseURL);
-            const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif|webp|hvec)$/i.test(file));
+            const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif|bmp|webp|heic)$/i.test(file));
             if(end > start) limitedFiles = imageFiles.slice(start, end);
             else limitedFiles = imageFiles;
 
