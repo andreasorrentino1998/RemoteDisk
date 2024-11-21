@@ -132,7 +132,7 @@ function FileList() {
     <div>
         <div className="path-bar">
           <span className="icon48 back-icon" onClick={navigateBack} style={{cursor:'pointer'}}></span>
-          <h2>{currentPath}</h2>
+          <h2>{currentPath.split("/").at(currentPath.split("/").length-2)}</h2>
         </div>
         <button onClick={changeViewMode}>{(galleryMode? "Explorer": "Gallery")}</button>
         {

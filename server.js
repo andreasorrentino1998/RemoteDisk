@@ -139,6 +139,7 @@ app.get('*', async (req, res) => {
     if(!allowedClientsIP.includes(rclientIp)){
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         res.end('Accesso non autorizzato');
+        console.log("Client IP", rclientIp, ": Accesso non autorizzato.");
         return;
     } 
 
