@@ -5,6 +5,10 @@ const express = require('express');
 const path = require('path');
 const sharp = require('sharp');
 
+const ffmpeg = require('fluent-ffmpeg');
+const { PassThrough } = require('stream');
+const { createCanvas } = require('canvas');
+
 const app = express();
 
 // ====  CONFIG ==============
@@ -89,6 +93,74 @@ async function scanDirectory(targetPath) {
     return fileList;
 }
 
+
+// Funzione per generare la thumbnail
+async function generateVideoThumbnailInMemory(videoPath, timestamp = '00:00:00.001') {
+    return new Promise((resolve, reject) => {
+        const ffmpegProcess = ffmpeg(videoPath)
+            .outputOptions([
+                '-vframes 1',         // Estrai un singolo frame
+                '-ss', timestamp,     // Imposta il timestamp
+                '-f image2pipe',      // Scrivi l'immagine come stream
+                '-vcodec mjpeg',       // Usa il codec MJPEG
+                '-vf', 'scale=w=120:h=-1' // Imposta la larghezza a W e altezza calcolata automaticamente per mantenere l'aspect ratio
+            ])
+            .format('mjpeg');
+
+        // Stream in memoria
+        var passThrough = new PassThrough();
+        
+        ffmpegProcess
+            .pipe(passThrough, { end: false })
+            .on('error', (err) => {
+                console.error('Errore durante la generazione della thumbnail:', err);
+                reject(err);
+            });
+
+        const chunks = [];
+
+        passThrough.on('data', (chunk) => {
+            console.log("Chunk ricevuto");
+            chunks.push(chunk);
+        });
+
+        passThrough.on('close', () => {
+            console.log('FFmpeg processo chiuso');
+        })
+
+        passThrough.on('end', () => {
+            // Combina i chunk per ottenere il buffer
+            /*console.log('Flusso terminato');
+            const buffer = Buffer.concat(chunks);
+            resolve(buffer);*/
+        });
+
+        ffmpegProcess.on('end', () => {
+            console.log('Elaborazione completata.');
+            const buffer = Buffer.concat(chunks);
+            resolve(buffer);
+            //outputStream.end(); // Chiudi manualmente lo stream quando FFmpeg è finito
+        });
+
+        ffmpegProcess.on('error', (err) => {
+            console.error('Errore durante l\'elaborazione del video:', err.message);
+            // Ulteriori azioni da intraprendere in caso di errore
+            const canvas = createCanvas(240, 120);
+            const ctx = canvas.getContext('2d');
+
+            // Riempie l'immagine di nero
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, 240, 120);
+
+            // Restituisce l'immagine come buffer JPEG
+            resolve(canvas.toBuffer('image/jpeg'));
+        })
+
+        ffmpegProcess.run();
+
+    });
+}
+
 app.get("*/load-images?", async (req, res) => {
     console.log(req.url);
     const url = new URL(req.url, `https://${host}:${port}`);
@@ -134,6 +206,65 @@ app.get("*/load-images?", async (req, res) => {
         return;
 });
 
+app.get("*/load-videos?", async (req, res) => {
+    console.log(req.url);
+    const url = new URL(req.url, `https://${host}:${port}`);
+    const start = parseInt(url.searchParams.get('start')) || 0;
+    const end = parseInt(url.searchParams.get('end')) || -1;
+    const thumbnail = url.searchParams.has('thumbnail');
+        //console.log(thumbnail);
+
+        try {
+            //console.log(imageDir);
+            const baseURL = decodeURIComponent(req.url.split('load-videos?')[0]);
+            console.log(baseURL);
+
+            var limitedFiles;
+
+            console.log("Start=", start, "end=", end);
+
+            // Note: HEIC format seems to be supported only on Safari.
+            const files = await fs.promises.readdir(baseURL);
+            const videoFiles = files.filter(file => /\.(mp4|avi|mkv|mov|ts|flv|bmp|webm)$/i.test(file));
+            if(end > start) limitedFiles = videoFiles.slice(start, end);
+            else limitedFiles = videoFiles;
+
+            // Invia le thumbnail come array JSON con i percorsi relativi
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+
+            // JSON
+            const filesInfo = limitedFiles.map((file) => ({
+                src: thumbnail ? `https://${host}:${port}${baseURL}${file}?thumbnail=true` : `https://${host}:${port}${baseURL}${file}`,
+                width: undefined,
+                height: undefined
+            }));
+
+            res.end(JSON.stringify(filesInfo));
+        } catch (err) {
+            console.error('Errore nel caricamento dei video:', err);
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Errore del server');
+        }
+        return;
+});
+
+function isVideoOrImage(path) {
+    // Lista delle estensioni video e immagine
+    const videoExtensions = ['mp4', 'avi', 'webm'];
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'tiff', 'webp'];
+
+    // Ottieni l'estensione del file
+    const extension = path.split('.').pop().toLowerCase();
+
+    if (videoExtensions.includes(extension)) {
+        return 'video';
+    } else if (imageExtensions.includes(extension)) {
+        return 'image';
+    } else {
+        return 'unknown'; // Nessuna corrispondenza
+    }
+}
+
 app.get('*', async (req, res) => {
     const rclientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     if(!allowedClientsIP.includes(rclientIp)){
@@ -150,20 +281,28 @@ app.get('*', async (req, res) => {
 
     if(req.query.thumbnail === 'true'){
         const imageURL = req.url.replace("?thumbnail=true", "");
-    
-        try {
-            const thumbnail = await sharp(decodeURIComponent(imageURL))
-                .resize(150) // Dimensioni thumbnail
-                .toBuffer();
-            
+        if(isVideoOrImage(imageURL) === 'video'){
+            const thumbnail = await generateVideoThumbnailInMemory(decodeURIComponent(imageURL));
             res.writeHead(200, { 'Content-Type': 'image/jpeg' });
             res.end(thumbnail);
-        } catch (err) {
-            console.error('Errore nella creazione della thumbnail:', err);
-            res.writeHead(404, { 'Content-Type': 'text/plain' });
-            res.end('Immagine non trovata');
+            return;
+        }   
+        else {
+            try {
+                const thumbnail = await sharp(decodeURIComponent(imageURL))
+                    .resize(150) // Dimensioni thumbnail
+                    .toBuffer();
+                
+                res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+                res.end(thumbnail);
+            } catch (err) {
+                console.error('Errore nella creazione della thumbnail:', err);
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Immagine non trovata');
+            }
+            return;
         }
-        return;
+        
     }
 
     try {

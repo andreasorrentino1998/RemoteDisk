@@ -61,7 +61,7 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
   
-  .photo-item img {
+  .photo-item img, .photo-item video {
     width: 96%;
     height: auto;
     display: block;

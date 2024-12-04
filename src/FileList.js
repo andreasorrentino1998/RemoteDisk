@@ -3,6 +3,7 @@ import { MasonryPhotoAlbum } from "react-photo-album";
 import "react-photo-album/masonry.css";
 import './FileList.css';
 
+
 const MasonryPhotoAlbum2 = ({ photos, onPhotoClick }) => {
   return (
     <div className="masonry-grid">
@@ -11,7 +12,26 @@ const MasonryPhotoAlbum2 = ({ photos, onPhotoClick }) => {
           <img
             src={photo.src}
             alt={photo.alt}
-            onClick={() => onPhotoClick(photo)} // Aggiungi l'evento onClick
+            onClick={() => onPhotoClick(photo)}
+          />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const MasonryVideoAlbum = ({ videos, onVideoClick }) => {
+  return (
+    <div className="masonry-grid">
+      {videos.map((video, index) => (
+        <div key={index} className="photo-item">
+          <video
+            src={video.src}
+            alt={video.src}
+            controls={true}
+            preload="metadata"
+            poster={video.src+"?thumbnail=true"}
+            onClick={() => onVideoClick(video)}
           />
         </div>
       ))}
@@ -21,18 +41,25 @@ const MasonryPhotoAlbum2 = ({ photos, onPhotoClick }) => {
 
 function FileList() {
   const [data, setData] = useState(null);
+  const [videos, setVideos] = useState([]);
   const [photos, setPhotos] = useState([{src: "", width:0, height:0}]);
   const [currentPath, setCurrentPath] = useState("/Volumes/");
   const [isScrolling, setIsScrolling] = useState(false);
   var [loadedImages, setLoadedImages] = useState(0);
+  var [loadedVideos, setLoadedVideos] = useState(0);
   const [imagesToLoad, setImagesToLoad] = useState(30);
+  const [videosToLoad, setVideosToLoad] = useState(30);
 
   const [galleryMode, setGalleryMode] = useState(false);
 
   const handlePhotoClick = (photo) => {
-    console.log('Foto cliccata:', photo);
+    console.log('Photo clicked:', photo);
     window.location.href = photo.src.replace("?thumbnail=true", "");
-    // Puoi aggiungere altre logiche come mostrare una modale, cambiare stato, etc.
+  };
+
+  const handleVideoClick = (video) => {
+    console.log('Video clicked:', video);
+    window.location.href = video.src;
   };
 
   useEffect(() => {
@@ -42,6 +69,7 @@ function FileList() {
           setIsScrolling(true);
           console.log("scrollend");
           loadImages();
+          loadVideos();
         }
       }
     };
@@ -58,7 +86,7 @@ function FileList() {
     fetch(currentPath+'load-images?start='+loaded+'&end='+(loaded+imagesToLoad)+'&thumbnail=true')
       .then(response => { return response.json()})
       .then(data => {
-        console.log('Dati ricevuti dal server:', data); // Stampa i dati nel log
+        console.log('Dati ricevuti dal server:', data);
         setLoadedImages(loaded + imagesToLoad);
         if(loadedImages != 0) setPhotos(photos => [...photos, ...data]);
         else setPhotos(data);
@@ -69,17 +97,35 @@ function FileList() {
       .catch(error => console.error('Error fetching data:', error));
   }
 
+  function loadVideos(){//
+    var vloaded = loadedVideos;  // to avoid it changes when reading two times when building the URL to fetch.
+    fetch(currentPath+'load-videos?start='+vloaded+'&end='+(vloaded+videosToLoad))
+      .then(response => { return response.json()})
+      .then(data => {
+        console.log('Dati ricevuti dal server:', data); // Stampa i dati nel log
+        setLoadedVideos(vloaded + videosToLoad);
+        if(loadedVideos != 0) setVideos(videos => [...videos, ...data]);
+        else setVideos(data);
+        console.log(loadedVideos);
+
+        setIsScrolling(false);
+      })
+      .catch(error => console.error('Error fetching data:', error));
+  }
+
   useEffect(() => {
     fetch(currentPath)
       .then(response => { return response.json()})
       .then(data => {
-        console.log('Dati ricevuti dal server:', data); // Stampa i dati nel log
+        console.log('Dati ricevuti dal server:', data);
         setData(data);
       })
       .catch(error => console.error('Error fetching data:', error));
     
     setImagesToLoad(10);
+    setVideosToLoad(10);
     loadImages();
+    loadVideos();
   }, [currentPath]);
 
   function navigateBack(){
@@ -115,7 +161,10 @@ function FileList() {
     setCurrentPath(decodeURIComponent(path));
     setLoadedImages(0);
     setImagesToLoad(30);
+    setLoadedVideos(0);
+    setVideosToLoad(30);
     setPhotos([]);
+    setVideos([]);
     console.log('Navigate to ' + currentPath);
     fetch(decodeURIComponent(path))
       .then(response => {console.log('Dati ricevuti dal server:', response); return response.json()})
@@ -152,6 +201,7 @@ function FileList() {
                 ) : null
               ))}
               </div>
+              <MasonryVideoAlbum videos={videos} onVideoClick={handleVideoClick}/>
               <MasonryPhotoAlbum2 photos={photos} onPhotoClick={handlePhotoClick}/>
             </div>
           ):
