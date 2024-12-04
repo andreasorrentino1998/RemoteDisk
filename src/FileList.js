@@ -43,7 +43,7 @@ function FileList() {
   const [data, setData] = useState(null);
   const [videos, setVideos] = useState([]);
   const [photos, setPhotos] = useState([{src: "", width:0, height:0}]);
-  const [currentPath, setCurrentPath] = useState("/Volumes/");
+  const [currentPath, setCurrentPath] = useState("/Volumes/Macintosh HD/Users/Andrea/");
   const [isScrolling, setIsScrolling] = useState(false);
   var [loadedImages, setLoadedImages] = useState(0);
   var [loadedVideos, setLoadedVideos] = useState(0);

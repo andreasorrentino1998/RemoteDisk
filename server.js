@@ -12,13 +12,13 @@ const { createCanvas } = require('canvas');
 const app = express();
 
 // ====  CONFIG ==============
-const host = "";        // Server IP
-const port = 8080;      // Server Port
+const host = "192.168.1.23";        // Server IP
+const port = 8080;                  // Server Port
 
 const allowedClientsIP = [
-    "",
-    "",
-    ""
+    "192.168.1.5",
+    "192.168.1.177",
+    "192.168.1.23"
 ]
 
 const baseDirectory = '/Volumes/';
@@ -250,7 +250,7 @@ app.get("*/load-videos?", async (req, res) => {
 
 function isVideoOrImage(path) {
     // Lista delle estensioni video e immagine
-    const videoExtensions = ['mp4', 'avi', 'webm'];
+    const videoExtensions = ['mp4', 'avi', 'mov', 'webm'];
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'tiff', 'webp'];
 
     // Ottieni l'estensione del file
